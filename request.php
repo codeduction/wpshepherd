@@ -7,13 +7,10 @@
  
 define('SHEP_PATH', dirname(__FILE__) .'/');
 define('SHEP_REQUEST', __FILE__);
-define('SHEP_VERSION', '0.4');
 
 class Wp_Shep {
 	protected $sVersion = null;
-	protected $wp_args = array(
-		'user-agent' => 'WordPress/WPShep/0.4'
-	);
+	protected $wp_args = array();
 	protected $url;
 	
 	/*
@@ -29,6 +26,10 @@ class Wp_Shep {
 	 * return null
 	 */
 	function __construct() {
+		$this->wp_args = array(
+			'user-agent' => 'WordPress/WPShep/' . SHEP_VERSION,
+		);		
+		
 		add_action( 'plugins_loaded', array( $this, 'correct_version' ), 5);
 		add_action( 'init', array($this, 'request'), 500);
 		$this->url = str_replace(array('http://', 'www.', '/'), '', get_bloginfo('url'));
@@ -40,9 +41,17 @@ class Wp_Shep {
 	 * @return $this->response();
 	 */
 	public function request() {
-		$sRequestUrl = $_SERVER['REQUEST_URI'];
-		if(stripos($sRequestUrl, 'wpshep/request') !== false) {
-			$this->reponse();
+		if(isset($_GET['wpshep'])) {
+			$options = get_option('shepherd_option_name');
+			if(!isset($options['api_key']) || (isset($options['api_key']) && !$options['api_key'])) {
+				echo json_encode(array('fault' => '504'));
+				exit;
+			} elseif(sha1(trim($options['api_key'])) != trim($_GET['wpshep'])) {
+				echo json_encode(array('fault' => '506'));
+				exit;
+			} else {
+				$this->reponse();
+			}
 		}
 	}
 	
@@ -99,7 +108,7 @@ class Wp_Shep {
 				$body_array['data_' . $key] = $rsa_now->encrypt($str);
 			}
 			
-			wp_remote_post('https://www.wpshepherd.com/server/post/api_key/' . $options['api_key'], array_merge(array('body' => $body_array, 'user-agent' => 'WordPress/WPShep/0.4')));
+			wp_remote_post('https://www.wpshepherd.com/server/post/api_key/' . $options['api_key'], array_merge(array('body' => $body_array, 'user-agent' => 'WordPress/WPShep/' . SHEP_VERSION)));
 		} catch (Exception $e) {
         	echo json_encode(array('fault' => $e->getMessage()));
 		}

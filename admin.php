@@ -106,7 +106,7 @@ class ShepherdSettingsPage
         if( isset( $input['api_key'] ) ) {
             $new_input['api_key'] = sanitize_text_field( $input['api_key'] );
 			$url = str_replace(array('http://', 'www.', '/'), '', get_bloginfo('url'));
-			$response = wp_remote_get('https://www.wpshepherd.com/server/wpsave/api_key/' . $input['api_key'] . '/url/' . $url, array('user-agent' => 'WordPress/WPShep/0.4'));	
+			$response = wp_remote_get('https://www.wpshepherd.com/server/wpsave/api_key/' . $input['api_key'] . '/url/' . $url . '/version/' . SHEP_VERSION, array('user-agent' => 'WordPress/WPShep/' . SHEP_VERSION));	
 		}
 
         return $new_input;
