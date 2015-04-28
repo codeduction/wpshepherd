@@ -3,9 +3,8 @@ Contributors: wpshepherd
 Tags: monitoring
 Requires at least: 3.0.1
 Tested up to: 3.4
-Stable tag: 0.4
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Stable tag: 1.0.1
+License: Apache License 2.0
 
 Complete WordPress version tracking - made simple. Making life a little easier for WordPress lovers all over.
 
@@ -26,4 +25,4 @@ Complete WordPress version tracking - made simple. Making life a little easier f
 == Changelog ==
 
 = 0.4 =
-Initial WP Sheperd Plugin.
+Initial WP Shepherd Plugin.

@@ -2,10 +2,9 @@
 
 /*
  * Codefuel Sheperd
- * Version 0.2 Reponse via json
  */
  
-define('SHEP_PATH', dirname(__FILE__) .'/');
+
 define('SHEP_REQUEST', __FILE__);
 
 class Wp_Shep {
@@ -28,6 +27,7 @@ class Wp_Shep {
 	function __construct() {
 		$this->wp_args = array(
 			'user-agent' => 'WordPress/WPShep/' . SHEP_VERSION,
+			'sslverify' => false,
 		);		
 		
 		add_action( 'plugins_loaded', array( $this, 'correct_version' ), 5);
@@ -57,7 +57,7 @@ class Wp_Shep {
 	
 	public function reponse() {
 		try {
-			include(__DIR__ . '/phpseclib/Crypt/RSA.php');
+			include(SHEP_PATH . '/phpseclib/Crypt/RSA.php');
 			$public_key = get_transient('wpshep_public');
 			$md5_check = get_transient('wpshep_md5');
 			$options = get_option('shepherd_option_name');
@@ -68,11 +68,24 @@ class Wp_Shep {
 			if(strlen($public_key)==0) {
 				// General Response
 				$response = wp_remote_get('https://www.wpshepherd.com/server/index/api_key/' . $options['api_key'], $this->wp_args);
+				if(is_wp_error($response)) {
+					$messages = $response;
+					throw new Exception('113-1');
+				}
+				$hand = wp_remote_get('https://www.wpshepherd.com/server/hand/api_key/' . $options['api_key'], $this->wp_args);
+				if(is_wp_error($hand)) {
+					$messages = $hand;
+					throw new Exception('113-2');
+				}
+				
 				$response_data = json_decode($response['body'], true);
 				
 				// Lets verify handshake
 				$hand = wp_remote_get('https://www.wpshepherd.com/server/hand/api_key/' . $options['api_key'], $this->wp_args);
-
+				if(is_wp_error($hand)) {
+					$messages = $hand;
+					throw new Exception('113-3');
+				}
 				$rsa = new Crypt_RSA();
 				$rsa->loadKey($response_data['public_key']);
 				
@@ -80,8 +93,8 @@ class Wp_Shep {
 					throw new Exception(802);
 				} else {
 					// Handshake passed lets just carry on and cache for 24hours / (60 * 60 * 24)
-					set_transient('wpshep_public', $response_data['public_key'], 60);
-					set_transient('wpshep_md5', $response_data['md5_check'], 60);
+					set_transient('wpshep_public', $response_data['public_key'], (60 * 60 * 2));
+					set_transient('wpshep_md5', $response_data['md5_check'], (60 * 60 * 2));
 					$public_key = $response_data['public_key'];
 					$md5_check = $response_data['md5_check'];
 				}
@@ -107,10 +120,16 @@ class Wp_Shep {
 			foreach(str_split($json_data, 3000) as $key => $str) {
 				$body_array['data_' . $key] = $rsa_now->encrypt($str);
 			}
-			
-			wp_remote_post('https://www.wpshepherd.com/server/post/api_key/' . $options['api_key'], array_merge(array('body' => $body_array, 'user-agent' => 'WordPress/WPShep/' . SHEP_VERSION)));
+			$r = wp_remote_post('https://www.wpshepherd.com/server/post/api_key/' . $options['api_key'], array_merge(array('body' => $body_array, 'user-agent' => 'WordPress/WPShep/' . SHEP_VERSION, 'sslverify' => false)));
+			if(!is_wp_error($r)) {
+				throw new Exception('5');
+			} else {
+				$messages = $r;
+				throw new Exception('112');
+			}
 		} catch (Exception $e) {
-        	echo json_encode(array('fault' => $e->getMessage()));
+			if(!is_array($messages))$r = array();
+        	echo json_encode(array('fault' => $e->getMessage(), 'messages' => $messages));
 		}
 		exit;
 	}
@@ -168,6 +187,7 @@ class Wp_Shep {
 		$aActivePlugins = get_option('active_plugins');
 		foreach ( $aPlugins as $sSlug =>  $aPlugin ) {
 			$aPlugin['Active'] = in_array($sSlug, $aActivePlugins) ? '1' : '0';
+			$aPlugin['path'] = $sSlug;
 			$aRtn['plugins'][$aPlugin['Name']] = $aPlugin;
 		}
 		
